@@ -1,0 +1,3004 @@
+openapi: 3.0.3
+info:
+  title: CheckoutForge API
+  description: |
+    CheckoutForge is a comprehensive checkout and payment processing platform that enables businesses to create
+    high-converting checkout pages, manage products and pricing, build sales funnels, run A/B tests, and track
+    affiliate performance.
+  version: 1.0.0
+  contact:
+    name: CheckoutForge API Support
+    email: api@checkoutforge.com
+
+servers:
+  - url: https://api.checkoutforge.com/v1
+    description: Production server
+  - url: https://sandbox.checkoutforge.com/v1
+    description: Sandbox server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Checkout
+    description: Public checkout page operations
+  - name: Templates
+    description: Checkout template management
+  - name: Admin - Products
+    description: Product management (admin)
+  - name: Admin - Checkouts
+    description: Checkout page configuration (admin)
+  - name: Admin - Orders
+    description: Order management (admin)
+  - name: Admin - Funnels
+    description: Sales funnel configuration (admin)
+  - name: Admin - AB Tests
+    description: A/B test management (admin)
+  - name: Admin - Affiliates
+    description: Affiliate program management (admin)
+  - name: Admin - Reports
+    description: Analytics and reporting (admin)
+  - name: Webhooks
+    description: External webhook endpoints
+
+paths:
+  /checkout/{checkoutId}:
+    get:
+      tags:
+        - Checkout
+      summary: Get checkout page configuration
+      description: Retrieves the configuration for a checkout page including product details, pricing, and template settings.
+      operationId: getCheckout
+      security: []
+      parameters:
+        - name: checkoutId
+          in: path
+          required: true
+          description: Unique identifier for the checkout page
+          schema:
+            type: string
+            example: chk_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Checkout configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutPage'
+        '404':
+          description: Checkout page not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /checkout/{checkoutId}/token:
+    post:
+      tags:
+        - Checkout
+      summary: Create embedded checkout token
+      description: Generates a secure token for embedding a checkout page in an iframe or custom implementation.
+      operationId: createCheckoutToken
+      security: []
+      parameters:
+        - name: checkoutId
+          in: path
+          required: true
+          description: Unique identifier for the checkout page
+          schema:
+            type: string
+            example: chk_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  description: Optional customer identifier for prefilling
+                  example: cus_abc123
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Custom metadata to associate with the checkout session
+                  example:
+                    campaign: summer_sale
+                    source: email
+      responses:
+        '201':
+          description: Token created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Secure checkout token
+                    example: tok_1a2b3c4d5e6f7g8h9i0j
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: Token expiration timestamp
+                    example: '2025-10-12T22:30:00Z'
+                  embedUrl:
+                    type: string
+                    description: URL for embedding the checkout
+                    example: https://checkout.checkoutforge.com/embed/tok_1a2b3c4d5e6f7g8h9i0j
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Checkout page not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /templates:
+    get:
+      tags:
+        - Templates
+      summary: List available checkout templates
+      description: Retrieves a list of all available checkout page templates with preview information.
+      operationId: listTemplates
+      security: []
+      parameters:
+        - name: category
+          in: query
+          description: Filter templates by category
+          schema:
+            type: string
+            enum: [ecommerce, saas, digital_products, services, donations]
+          example: saas
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+      responses:
+        '200':
+          description: Templates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /checkout:
+    post:
+      tags:
+        - Checkout
+      summary: Create order from checkout
+      description: Submits customer information and payment details to create an order.
+      operationId: createOrder
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - checkoutId
+                - customer
+                - paymentMethod
+              properties:
+                checkoutId:
+                  type: string
+                  description: Checkout page identifier
+                  example: chk_1a2b3c4d5e6f
+                customer:
+                  type: object
+                  required:
+                    - email
+                    - firstName
+                    - lastName
+                  properties:
+                    email:
+                      type: string
+                      format: email
+                      example: customer@example.com
+                    firstName:
+                      type: string
+                      example: John
+                    lastName:
+                      type: string
+                      example: Doe
+                    phone:
+                      type: string
+                      example: '+1-555-123-4567'
+                paymentMethod:
+                  type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      enum: [card, paypal, stripe]
+                      example: stripe
+                    token:
+                      type: string
+                      description: Payment token from Stripe/PayPal
+                      example: tok_1a2b3c4d5e6f
+                billingAddress:
+                  $ref: '#/components/schemas/Address'
+                shippingAddress:
+                  $ref: '#/components/schemas/Address'
+                affiliateCode:
+                  type: string
+                  description: Optional affiliate referral code
+                  example: AFF123
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Custom metadata
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Checkout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/products:
+    get:
+      tags:
+        - Admin - Products
+      summary: List all products
+      description: Retrieves a paginated list of all products.
+      operationId: listProducts
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, draft]
+          example: active
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin - Products
+      summary: Create a new product
+      description: Creates a new product with pricing information.
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - price
+              properties:
+                name:
+                  type: string
+                  example: Premium Subscription
+                description:
+                  type: string
+                  example: Access to all premium features
+                type:
+                  type: string
+                  enum: [physical, digital, service, subscription]
+                  example: subscription
+                price:
+                  type: number
+                  format: float
+                  example: 29.99
+                currency:
+                  type: string
+                  default: USD
+                  example: USD
+                recurringInterval:
+                  type: string
+                  enum: [day, week, month, year]
+                  example: month
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                  example: ['https://cdn.example.com/product1.jpg']
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/products/{productId}:
+    get:
+      tags:
+        - Admin - Products
+      summary: Get product by ID
+      description: Retrieves detailed information about a specific product.
+      operationId: getProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: prod_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin - Products
+      summary: Update product
+      description: Updates an existing product.
+      operationId: updateProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: prod_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Premium Plus Subscription
+                description:
+                  type: string
+                price:
+                  type: number
+                  format: float
+                  example: 39.99
+                status:
+                  type: string
+                  enum: [active, archived, draft]
+                  example: active
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin - Products
+      summary: Delete product
+      description: Deletes a product (soft delete - archives the product).
+      operationId: deleteProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: prod_1a2b3c4d5e6f
+      responses:
+        '204':
+          description: Product deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/checkouts:
+    get:
+      tags:
+        - Admin - Checkouts
+      summary: List all checkout pages
+      description: Retrieves a paginated list of all checkout page configurations.
+      operationId: listCheckouts
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Checkouts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CheckoutPage'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin - Checkouts
+      summary: Create a new checkout page
+      description: Creates a new checkout page configuration.
+      operationId: createCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - productId
+                - templateId
+              properties:
+                name:
+                  type: string
+                  example: Q4 Sales Checkout
+                productId:
+                  type: string
+                  example: prod_1a2b3c4d5e6f
+                templateId:
+                  type: string
+                  example: tmpl_modern_saas
+                customization:
+                  type: object
+                  properties:
+                    primaryColor:
+                      type: string
+                      example: '#3B82F6'
+                    logo:
+                      type: string
+                      format: uri
+                      example: https://cdn.example.com/logo.png
+                    customCss:
+                      type: string
+                settings:
+                  type: object
+                  properties:
+                    collectShipping:
+                      type: boolean
+                      default: false
+                    collectPhone:
+                      type: boolean
+                      default: true
+                    termsUrl:
+                      type: string
+                      format: uri
+                    privacyUrl:
+                      type: string
+                      format: uri
+      responses:
+        '201':
+          description: Checkout created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutPage'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/checkouts/{checkoutId}:
+    get:
+      tags:
+        - Admin - Checkouts
+      summary: Get checkout by ID
+      description: Retrieves detailed information about a specific checkout page.
+      operationId: getCheckoutAdmin
+      parameters:
+        - name: checkoutId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: chk_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Checkout retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutPage'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Checkout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin - Checkouts
+      summary: Update checkout page
+      description: Updates an existing checkout page configuration.
+      operationId: updateCheckout
+      parameters:
+        - name: checkoutId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: chk_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                productId:
+                  type: string
+                templateId:
+                  type: string
+                customization:
+                  type: object
+                settings:
+                  type: object
+                status:
+                  type: string
+                  enum: [active, inactive, archived]
+      responses:
+        '200':
+          description: Checkout updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutPage'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Checkout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin - Checkouts
+      summary: Delete checkout page
+      description: Deletes a checkout page configuration.
+      operationId: deleteCheckout
+      parameters:
+        - name: checkoutId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: chk_1a2b3c4d5e6f
+      responses:
+        '204':
+          description: Checkout deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Checkout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/orders:
+    get:
+      tags:
+        - Admin - Orders
+      summary: List all orders
+      description: Retrieves a paginated list of all orders with filtering options.
+      operationId: listOrders
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed, refunded]
+          example: completed
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-01T00:00:00Z'
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-31T23:59:59Z'
+      responses:
+        '200':
+          description: Orders retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/orders/{orderId}:
+    get:
+      tags:
+        - Admin - Orders
+      summary: Get order by ID
+      description: Retrieves detailed information about a specific order.
+      operationId: getOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: ord_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Order retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/orders/{orderId}/refund:
+    post:
+      tags:
+        - Admin - Orders
+      summary: Refund an order
+      description: Processes a full or partial refund for an order.
+      operationId: refundOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: ord_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  description: Refund amount (omit for full refund)
+                  example: 29.99
+                reason:
+                  type: string
+                  example: Customer requested refund
+      responses:
+        '200':
+          description: Refund processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                    example: ord_1a2b3c4d5e6f
+                  refundId:
+                    type: string
+                    example: ref_1a2b3c4d5e6f
+                  amount:
+                    type: number
+                    format: float
+                    example: 29.99
+                  status:
+                    type: string
+                    example: refunded
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/funnels:
+    get:
+      tags:
+        - Admin - Funnels
+      summary: List all sales funnels
+      description: Retrieves a list of all configured sales funnels.
+      operationId: listFunnels
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Funnels retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Funnel'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin - Funnels
+      summary: Create a new sales funnel
+      description: Creates a new multi-step sales funnel configuration.
+      operationId: createFunnel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - steps
+              properties:
+                name:
+                  type: string
+                  example: Premium Upsell Funnel
+                description:
+                  type: string
+                  example: Main product with upsell and downsell
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - checkoutId
+                    properties:
+                      type:
+                        type: string
+                        enum: [main, upsell, downsell, thankyou]
+                        example: main
+                      checkoutId:
+                        type: string
+                        example: chk_1a2b3c4d5e6f
+                      order:
+                        type: integer
+                        example: 1
+                      conditions:
+                        type: object
+                        description: Conditional logic for showing this step
+      responses:
+        '201':
+          description: Funnel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/funnels/{funnelId}:
+    get:
+      tags:
+        - Admin - Funnels
+      summary: Get funnel by ID
+      description: Retrieves detailed information about a specific funnel.
+      operationId: getFunnel
+      parameters:
+        - name: funnelId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: fnl_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Funnel retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Funnel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin - Funnels
+      summary: Update funnel
+      description: Updates an existing sales funnel configuration.
+      operationId: updateFunnel
+      parameters:
+        - name: funnelId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: fnl_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                steps:
+                  type: array
+                  items:
+                    type: object
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: Funnel updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Funnel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Admin - Funnels
+      summary: Delete funnel
+      description: Deletes a sales funnel configuration.
+      operationId: deleteFunnel
+      parameters:
+        - name: funnelId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: fnl_1a2b3c4d5e6f
+      responses:
+        '204':
+          description: Funnel deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Funnel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ab-tests:
+    get:
+      tags:
+        - Admin - AB Tests
+      summary: List all A/B tests
+      description: Retrieves a list of all A/B tests with their performance metrics.
+      operationId: listABTests
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, running, paused, completed]
+      responses:
+        '200':
+          description: A/B tests retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ABTest'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin - AB Tests
+      summary: Create a new A/B test
+      description: Creates a new A/B test to compare different checkout variations.
+      operationId: createABTest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - variants
+              properties:
+                name:
+                  type: string
+                  example: Checkout Color Test
+                description:
+                  type: string
+                  example: Testing blue vs green CTA button
+                variants:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - checkoutId
+                      - trafficAllocation
+                    properties:
+                      name:
+                        type: string
+                        example: Variant A - Blue
+                      checkoutId:
+                        type: string
+                        example: chk_1a2b3c4d5e6f
+                      trafficAllocation:
+                        type: number
+                        format: float
+                        minimum: 0
+                        maximum: 100
+                        example: 50.0
+                        description: Percentage of traffic (must sum to 100)
+      responses:
+        '201':
+          description: A/B test created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ABTest'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ab-tests/{testId}:
+    get:
+      tags:
+        - Admin - AB Tests
+      summary: Get A/B test by ID
+      description: Retrieves detailed information and metrics for a specific A/B test.
+      operationId: getABTest
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: abt_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: A/B test retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ABTest'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: A/B test not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin - AB Tests
+      summary: Update A/B test
+      description: Updates an A/B test configuration or status.
+      operationId: updateABTest
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: abt_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [draft, running, paused, completed]
+                variants:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: A/B test updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ABTest'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: A/B test not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/affiliates:
+    get:
+      tags:
+        - Admin - Affiliates
+      summary: List all affiliates
+      description: Retrieves a list of all registered affiliates.
+      operationId: listAffiliates
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending]
+      responses:
+        '200':
+          description: Affiliates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Affiliate'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Admin - Affiliates
+      summary: Create a new affiliate
+      description: Registers a new affiliate in the program.
+      operationId: createAffiliate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - commissionRate
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: affiliate@example.com
+                commissionRate:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 100
+                  example: 20.0
+                  description: Commission percentage
+                paymentMethod:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [paypal, stripe, bank_transfer]
+                      example: paypal
+                    details:
+                      type: object
+                      additionalProperties: true
+      responses:
+        '201':
+          description: Affiliate created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Affiliate'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/affiliates/{affiliateId}:
+    get:
+      tags:
+        - Admin - Affiliates
+      summary: Get affiliate by ID
+      description: Retrieves detailed information about a specific affiliate.
+      operationId: getAffiliate
+      parameters:
+        - name: affiliateId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: aff_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Affiliate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Affiliate'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Affiliate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Admin - Affiliates
+      summary: Update affiliate
+      description: Updates an affiliate's information or settings.
+      operationId: updateAffiliate
+      parameters:
+        - name: affiliateId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: aff_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                commissionRate:
+                  type: number
+                  format: float
+                status:
+                  type: string
+                  enum: [active, inactive, pending]
+                paymentMethod:
+                  type: object
+      responses:
+        '200':
+          description: Affiliate updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Affiliate'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Affiliate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/affiliates/{affiliateId}/commissions:
+    get:
+      tags:
+        - Admin - Affiliates
+      summary: Get affiliate commissions
+      description: Retrieves commission history for a specific affiliate.
+      operationId: getAffiliateCommissions
+      parameters:
+        - name: affiliateId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: aff_1a2b3c4d5e6f
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, paid]
+      responses:
+        '200':
+          description: Commissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Commission'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  summary:
+                    type: object
+                    properties:
+                      totalEarned:
+                        type: number
+                        format: float
+                        example: 1250.00
+                      pendingAmount:
+                        type: number
+                        format: float
+                        example: 350.00
+                      paidAmount:
+                        type: number
+                        format: float
+                        example: 900.00
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Affiliate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/affiliates/{affiliateId}/payout:
+    post:
+      tags:
+        - Admin - Affiliates
+      summary: Process affiliate payout
+      description: Processes a payout for an affiliate's pending commissions.
+      operationId: processAffiliatePayout
+      parameters:
+        - name: affiliateId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: aff_1a2b3c4d5e6f
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  example: 350.00
+                note:
+                  type: string
+                  example: Monthly payout for October 2025
+      responses:
+        '200':
+          description: Payout processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payoutId:
+                    type: string
+                    example: pay_1a2b3c4d5e6f
+                  affiliateId:
+                    type: string
+                    example: aff_1a2b3c4d5e6f
+                  amount:
+                    type: number
+                    format: float
+                    example: 350.00
+                  status:
+                    type: string
+                    example: paid
+                  paidAt:
+                    type: string
+                    format: date-time
+                    example: '2025-10-12T21:58:00Z'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Affiliate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/reports/revenue:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Get revenue report
+      description: Retrieves revenue analytics with various breakdowns and filters.
+      operationId: getRevenueReport
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-01T00:00:00Z'
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-31T23:59:59Z'
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+          example: day
+        - name: productId
+          in: query
+          schema:
+            type: string
+          example: prod_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Revenue report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      totalRevenue:
+                        type: number
+                        format: float
+                        example: 45680.50
+                      totalOrders:
+                        type: integer
+                        example: 523
+                      averageOrderValue:
+                        type: number
+                        format: float
+                        example: 87.35
+                      refundedAmount:
+                        type: number
+                        format: float
+                        example: 1250.00
+                  breakdown:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        period:
+                          type: string
+                          example: '2025-10-01'
+                        revenue:
+                          type: number
+                          format: float
+                          example: 1520.00
+                        orders:
+                          type: integer
+                          example: 18
+                        refunds:
+                          type: number
+                          format: float
+                          example: 0.00
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/reports/conversion:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Get conversion report
+      description: Retrieves conversion rate analytics for checkout pages and funnels.
+      operationId: getConversionReport
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-01T00:00:00Z'
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-31T23:59:59Z'
+        - name: checkoutId
+          in: query
+          schema:
+            type: string
+          example: chk_1a2b3c4d5e6f
+        - name: funnelId
+          in: query
+          schema:
+            type: string
+          example: fnl_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Conversion report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      totalVisits:
+                        type: integer
+                        example: 2450
+                      totalOrders:
+                        type: integer
+                        example: 523
+                      conversionRate:
+                        type: number
+                        format: float
+                        example: 21.35
+                      averageTimeToConvert:
+                        type: number
+                        description: Average time in seconds
+                        example: 185.5
+                  checkouts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        checkoutId:
+                          type: string
+                          example: chk_1a2b3c4d5e6f
+                        name:
+                          type: string
+                          example: Q4 Sales Checkout
+                        visits:
+                          type: integer
+                          example: 850
+                        orders:
+                          type: integer
+                          example: 192
+                        conversionRate:
+                          type: number
+                          format: float
+                          example: 22.59
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/reports/affiliates:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Get affiliate performance report
+      description: Retrieves performance metrics for all affiliates.
+      operationId: getAffiliateReport
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-01T00:00:00Z'
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          example: '2025-10-31T23:59:59Z'
+        - name: affiliateId
+          in: query
+          schema:
+            type: string
+          example: aff_1a2b3c4d5e6f
+      responses:
+        '200':
+          description: Affiliate report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      totalClicks:
+                        type: integer
+                        example: 3420
+                      totalOrders:
+                        type: integer
+                        example: 187
+                      totalRevenue:
+                        type: number
+                        format: float
+                        example: 15680.00
+                      totalCommissions:
+                        type: number
+                        format: float
+                        example: 3136.00
+                      conversionRate:
+                        type: number
+                        format: float
+                        example: 5.47
+                  affiliates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        affiliateId:
+                          type: string
+                          example: aff_1a2b3c4d5e6f
+                        name:
+                          type: string
+                          example: John Doe
+                        clicks:
+                          type: integer
+                          example: 850
+                        orders:
+                          type: integer
+                          example: 52
+                        revenue:
+                          type: number
+                          format: float
+                          example: 4520.00
+                        commissions:
+                          type: number
+                          format: float
+                          example: 904.00
+                        conversionRate:
+                          type: number
+                          format: float
+                          example: 6.12
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/stripe:
+    post:
+      tags:
+        - Webhooks
+      summary: Stripe webhook endpoint
+      description: Receives webhook events from Stripe for payment processing updates.
+      operationId: stripeWebhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeWebhookEvent'
+            examples:
+              payment_intent_succeeded:
+                summary: Payment Intent Succeeded
+                value:
+                  id: evt_1a2b3c4d5e6f
+                  object: event
+                  type: payment_intent.succeeded
+                  created: 1697135280
+                  data:
+                    object:
+                      id: pi_1a2b3c4d5e6f
+                      object: payment_intent
+                      amount: 2999
+                      currency: usd
+                      status: succeeded
+                      metadata:
+                        orderId: ord_1a2b3c4d5e6f
+                        checkoutId: chk_1a2b3c4d5e6f
+              invoice_payment_failed:
+                summary: Invoice Payment Failed
+                value:
+                  id: evt_2b3c4d5e6f7g
+                  object: event
+                  type: invoice.payment_failed
+                  created: 1697135280
+                  data:
+                    object:
+                      id: in_1a2b3c4d5e6f
+                      object: invoice
+                      amount_due: 2999
+                      currency: usd
+                      status: open
+                      subscription: sub_1a2b3c4d5e6f
+                      attempt_count: 1
+              charge_refunded:
+                summary: Charge Refunded
+                value:
+                  id: evt_3c4d5e6f7g8h
+                  object: event
+                  type: charge.refunded
+                  created: 1697135280
+                  data:
+                    object:
+                      id: ch_1a2b3c4d5e6f
+                      object: charge
+                      amount: 2999
+                      amount_refunded: 2999
+                      currency: usd
+                      refunded: true
+                      metadata:
+                        orderId: ord_1a2b3c4d5e6f
+              customer_subscription_created:
+                summary: Customer Subscription Created
+                value:
+                  id: evt_4d5e6f7g8h9i
+                  object: event
+                  type: customer.subscription.created
+                  created: 1697135280
+                  data:
+                    object:
+                      id: sub_1a2b3c4d5e6f
+                      object: subscription
+                      customer: cus_1a2b3c4d5e6f
+                      status: active
+                      current_period_start: 1697135280
+                      current_period_end: 1699813680
+                      items:
+                        data:
+                          - price:
+                              id: price_1a2b3c4d5e6f
+                              product: prod_1a2b3c4d5e6f
+              customer_subscription_updated:
+                summary: Customer Subscription Updated
+                value:
+                  id: evt_5e6f7g8h9i0j
+                  object: event
+                  type: customer.subscription.updated
+                  created: 1697135280
+                  data:
+                    object:
+                      id: sub_1a2b3c4d5e6f
+                      object: subscription
+                      customer: cus_1a2b3c4d5e6f
+                      status: active
+                      cancel_at_period_end: false
+              customer_subscription_deleted:
+                summary: Customer Subscription Deleted
+                value:
+                  id: evt_6f7g8h9i0j1k
+                  object: event
+                  type: customer.subscription.deleted
+                  created: 1697135280
+                  data:
+                    object:
+                      id: sub_1a2b3c4d5e6f
+                      object: subscription
+                      customer: cus_1a2b3c4d5e6f
+                      status: canceled
+                      canceled_at: 1697135280
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/paypal:
+    post:
+      tags:
+        - Webhooks
+      summary: PayPal webhook endpoint
+      description: Receives webhook events from PayPal for payment processing updates.
+      operationId: paypalWebhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                  example: PAYMENT.CAPTURE.COMPLETED
+                resource:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid webhook signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Supabase authentication
+
+    OAuth2ClientCredentials:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.checkoutforge.com/v1/oauth/token
+          scopes:
+            read:products: Read product information
+            write:products: Create and update products
+            read:orders: Read order information
+            write:orders: Create and update orders
+            read:checkouts: Read checkout configurations
+            write:checkouts: Create and update checkouts
+            read:affiliates: Read affiliate information
+            write:affiliates: Manage affiliates
+
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - price
+        - currency
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: prod_1a2b3c4d5e6f
+        name:
+          type: string
+          example: Premium Subscription
+        description:
+          type: string
+          example: Access to all premium features
+        type:
+          type: string
+          enum: [physical, digital, service, subscription]
+          example: subscription
+        price:
+          type: number
+          format: float
+          example: 29.99
+        currency:
+          type: string
+          example: USD
+        recurringInterval:
+          type: string
+          enum: [day, week, month, year]
+          example: month
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ['https://cdn.example.com/product1.jpg']
+        status:
+          type: string
+          enum: [active, archived, draft]
+          example: active
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-01T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-10T15:30:00Z'
+
+    CheckoutPage:
+      type: object
+      required:
+        - id
+        - name
+        - productId
+        - templateId
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: chk_1a2b3c4d5e6f
+        name:
+          type: string
+          example: Q4 Sales Checkout
+        productId:
+          type: string
+          example: prod_1a2b3c4d5e6f
+        product:
+          $ref: '#/components/schemas/Product'
+        templateId:
+          type: string
+          example: tmpl_modern_saas
+        customization:
+          type: object
+          properties:
+            primaryColor:
+              type: string
+              example: '#3B82F6'
+            logo:
+              type: string
+              format: uri
+              example: https://cdn.example.com/logo.png
+            customCss:
+              type: string
+        settings:
+          type: object
+          properties:
+            collectShipping:
+              type: boolean
+              example: false
+            collectPhone:
+              type: boolean
+              example: true
+            termsUrl:
+              type: string
+              format: uri
+              example: https://example.com/terms
+            privacyUrl:
+              type: string
+              format: uri
+              example: https://example.com/privacy
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          example: active
+        url:
+          type: string
+          format: uri
+          example: https://checkout.checkoutforge.com/chk_1a2b3c4d5e6f
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-01T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-10T15:30:00Z'
+
+    Order:
+      type: object
+      required:
+        - id
+        - checkoutId
+        - productId
+        - status
+        - amount
+        - currency
+        - customer
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: ord_1a2b3c4d5e6f
+        checkoutId:
+          type: string
+          example: chk_1a2b3c4d5e6f
+        productId:
+          type: string
+          example: prod_1a2b3c4d5e6f
+        product:
+          $ref: '#/components/schemas/Product'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, refunded]
+          example: completed
+        amount:
+          type: number
+          format: float
+          example: 29.99
+        currency:
+          type: string
+          example: USD
+        customer:
+          type: object
+          required:
+            - email
+            - firstName
+            - lastName
+          properties:
+            email:
+              type: string
+              format: email
+              example: customer@example.com
+            firstName:
+              type: string
+              example: John
+            lastName:
+              type: string
+              example: Doe
+            phone:
+              type: string
+              example: '+1-555-123-4567'
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        shippingAddress:
+          $ref: '#/components/schemas/Address'
+        paymentMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              example: stripe
+            last4:
+              type: string
+              example: '4242'
+        affiliateCode:
+          type: string
+          example: AFF123
+        affiliateId:
+          type: string
+          example: aff_1a2b3c4d5e6f
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-12T18:45:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-12T18:50:00Z'
+
+    Funnel:
+      type: object
+      required:
+        - id
+        - name
+        - steps
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: fnl_1a2b3c4d5e6f
+        name:
+          type: string
+          example: Premium Upsell Funnel
+        description:
+          type: string
+          example: Main product with upsell and downsell
+        steps:
+          type: array
+          items:
+            type: object
+            required:
+              - type
+              - checkoutId
+              - order
+            properties:
+              type:
+                type: string
+                enum: [main, upsell, downsell, thankyou]
+                example: main
+              checkoutId:
+                type: string
+                example: chk_1a2b3c4d5e6f
+              order:
+                type: integer
+                example: 1
+              conditions:
+                type: object
+                description: Conditional logic for showing this step
+        status:
+          type: string
+          enum: [active, inactive]
+          example: active
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-01T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-10T15:30:00Z'
+
+    ABTest:
+      type: object
+      required:
+        - id
+        - name
+        - variants
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: abt_1a2b3c4d5e6f
+        name:
+          type: string
+          example: Checkout Color Test
+        description:
+          type: string
+          example: Testing blue vs green CTA button
+        variants:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - checkoutId
+              - trafficAllocation
+            properties:
+              name:
+                type: string
+                example: Variant A - Blue
+              checkoutId:
+                type: string
+                example: chk_1a2b3c4d5e6f
+              trafficAllocation:
+                type: number
+                format: float
+                example: 50.0
+              metrics:
+                type: object
+                properties:
+                  visits:
+                    type: integer
+                    example: 425
+                  orders:
+                    type: integer
+                    example: 96
+                  conversionRate:
+                    type: number
+                    format: float
+                    example: 22.59
+                  revenue:
+                    type: number
+                    format: float
+                    example: 2875.04
+        status:
+          type: string
+          enum: [draft, running, paused, completed]
+          example: running
+        startedAt:
+          type: string
+          format: date-time
+          example: '2025-10-01T00:00:00Z'
+        endedAt:
+          type: string
+          format: date-time
+          example: '2025-10-31T23:59:59Z'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-09-25T12:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-10T15:30:00Z'
+
+    Affiliate:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - code
+        - commissionRate
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: aff_1a2b3c4d5e6f
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: affiliate@example.com
+        code:
+          type: string
+          example: AFF123
+        commissionRate:
+          type: number
+          format: float
+          example: 20.0
+          description: Commission percentage
+        paymentMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [paypal, stripe, bank_transfer]
+              example: paypal
+            details:
+              type: object
+              additionalProperties: true
+        status:
+          type: string
+          enum: [active, inactive, pending]
+          example: active
+        metrics:
+          type: object
+          properties:
+            totalClicks:
+              type: integer
+              example: 850
+            totalOrders:
+              type: integer
+              example: 52
+            totalRevenue:
+              type: number
+              format: float
+              example: 4520.00
+            totalCommissions:
+              type: number
+              format: float
+              example: 904.00
+            pendingCommissions:
+              type: number
+              format: float
+              example: 180.00
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-08-15T10:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-12T14:20:00Z'
+
+    Commission:
+      type: object
+      required:
+        - id
+        - affiliateId
+        - orderId
+        - amount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: com_1a2b3c4d5e6f
+        affiliateId:
+          type: string
+          example: aff_1a2b3c4d5e6f
+        orderId:
+          type: string
+          example: ord_1a2b3c4d5e6f
+        amount:
+          type: number
+          format: float
+          example: 17.40
+        rate:
+          type: number
+          format: float
+          example: 20.0
+        status:
+          type: string
+          enum: [pending, approved, paid, rejected]
+          example: approved
+        paidAt:
+          type: string
+          format: date-time
+          example: '2025-10-12T21:58:00Z'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-12T18:45:00Z'
+
+    Template:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - previewUrl
+      properties:
+        id:
+          type: string
+          example: tmpl_modern_saas
+        name:
+          type: string
+          example: Modern SaaS Checkout
+        description:
+          type: string
+          example: Clean and modern checkout template optimized for SaaS products
+        category:
+          type: string
+          enum: [ecommerce, saas, digital_products, services, donations]
+          example: saas
+        previewUrl:
+          type: string
+          format: uri
+          example: https://cdn.checkoutforge.com/templates/modern_saas_preview.jpg
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: https://cdn.checkoutforge.com/templates/modern_saas_thumb.jpg
+        features:
+          type: array
+          items:
+            type: string
+          example: ['Mobile responsive', 'Trust badges', 'Progress indicator']
+
+    Address:
+      type: object
+      required:
+        - line1
+        - city
+        - country
+        - postalCode
+      properties:
+        line1:
+          type: string
+          example: 123 Main Street
+        line2:
+          type: string
+          example: Apt 4B
+        city:
+          type: string
+          example: San Francisco
+        state:
+          type: string
+          example: CA
+        country:
+          type: string
+          example: US
+        postalCode:
+          type: string
+          example: '94102'
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 156
+        totalPages:
+          type: integer
+          example: 8
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: invalid_request
+        message:
+          type: string
+          example: The request was invalid or cannot be processed
+        details:
+          type: object
+          additionalProperties: true
+          example:
+            field: email
+            issue: Invalid email format
+
+    StripeWebhookEvent:
+      type: object
+      required:
+        - id
+        - object
+        - type
+        - created
+        - data
+      properties:
+        id:
+          type: string
+          example: evt_1a2b3c4d5e6f
+        object:
+          type: string
+          example: event
+        type:
+          type: string
+          enum:
+            - payment_intent.succeeded
+            - payment_intent.payment_failed
+            - invoice.payment_succeeded
+            - invoice.payment_failed
+            - charge.succeeded
+            - charge.failed
+            - charge.refunded
+            - customer.subscription.created
+            - customer.subscription.updated
+            - customer.subscription.deleted
+            - customer.subscription.trial_will_end
+          example: payment_intent.succeeded
+        created:
+          type: integer
+          format: int64
+          example: 1697135280
+        data:
+          type: object
+          required:
+            - object
+          properties:
+            object:
+              type: object
+              additionalProperties: true
+              description: The specific Stripe object (PaymentIntent, Invoice, Charge, Subscription, etc.)
