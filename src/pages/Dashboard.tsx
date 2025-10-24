@@ -148,6 +148,10 @@ export function Dashboard() {
     { name: 'Funnels', icon: GitBranch, href: '/dashboard/funnels', current: false },
   ];
 
+  const handleCreateProduct = () => {
+    navigate('/products/create');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -222,9 +226,18 @@ export function Dashboard() {
           </div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-              <p className="text-slate-600 mt-1">Welcome back! Here's what's happening with your store.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+                <p className="text-slate-600 mt-1">Welcome back! Here's what's happening with your store.</p>
+              </div>
+              <button
+                onClick={handleCreateProduct}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition shadow-lg hover:shadow-xl"
+              >
+                <Package className="w-5 h-5" />
+                Create Product
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
